@@ -20,8 +20,8 @@ Bem-vindo ao repositório da Equipe 0X do HandsON de Linux do DevTITANS! Este pr
 - **Waldomiro Juan Gadelha Seabra 01:** Desenvolvedor do Firmware e Mantenedor do Projeto
 - **Bruno de Moura Solimões 02:** Desenvolvedor do Firmware
 - **Jefferson Damião da Silva Lima 03:** Desenvolvedor do Driver Linux
-- **Laiana de pinho Cavalcante 04:** Desenvolvedor do Driver Linux
-- **Sarah Julia Rolim dos Santos 05:** Desenvolvedor do Firmware e Escritor da Documentação
+- **Sarah Julia Rolim dos Santos 04:** Desenvolvedor do Driver Linux e Escritor da Documentação
+- **Laiana de pinho Cavalcante 05:** Desenvolvedor do Firmware 
 
 ## Introdução
 
