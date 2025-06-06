@@ -1,0 +1,3 @@
+Pino do led na pota G13.
+
+Pino do LDR na porta G34.
