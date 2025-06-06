@@ -6,7 +6,7 @@ int ledValue = 10;
 
 int ldrPin = 34;
 // Faça testes no sensor ldr para encontrar o valor maximo e atribua a variável ldrMax
-int ldrMax = 4063;
+int ldrMax = 3206;
 
 int ledVal = 10;
 
@@ -77,5 +77,7 @@ int getLedNormalizedVal(int val) {
 int ldrGetValue() {
     float ldrVal = analogRead(ldrPin);
     ldrVal = (ldrVal/ldrMax)*100;
+    if (ldrVal > 100)
+        ldrVal = 100;
     return (int)ldrVal;
 }
