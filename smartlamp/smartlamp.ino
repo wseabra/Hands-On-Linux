@@ -20,6 +20,7 @@ void setup() {
     pinMode(ledPin, OUTPUT);
     pinMode(ldrPin, INPUT);
     analogWrite(ledPin,getLedNormalizedVal(ledVal));
+    processCommand(GET_LDR);
     Serial.printf("SmartLamp Initialized.\n");
 }
 
