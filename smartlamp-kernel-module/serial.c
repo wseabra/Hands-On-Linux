@@ -15,8 +15,8 @@ static uint usb_in, usb_out;                       // Endereços das portas de e
 static char *usb_in_buffer, *usb_out_buffer;       // Buffers de entrada e saída da USB
 static int usb_max_size;                           // Tamanho máximo de uma mensagem USB
 
-#define VENDOR_ID   SUBSTITUA_PELO_VENDORID /* Encontre o VendorID  do smartlamp */
-#define PRODUCT_ID  SUBSTITUA_PELO_PRODUCTID /* Encontre o ProductID do smartlamp */
+#define VENDOR_ID   0x10c4 /* Encontre o VendorID  do smartlamp */
+#define PRODUCT_ID  0xea60 /* Encontre o ProductID do smartlamp */
 static const struct usb_device_id id_table[] = { { USB_DEVICE(VENDOR_ID, PRODUCT_ID) }, {} };
 
 static int  usb_probe(struct usb_interface *ifce, const struct usb_device_id *id); // Executado quando o dispositivo é conectado na USB
@@ -68,6 +68,10 @@ static void usb_disconnect(struct usb_interface *interface) {
 static int usb_read_serial() {
     int ret, actual_size;
     int retries = 10;                       // Tenta algumas vezes receber uma resposta da USB. Depois desiste.
+    long ldr_value; 
+
+    const char *prefix = "RES GET_LDR ";
+    const size_t prefix_len = strlen(prefix);
 
     // Espera pela resposta correta do dispositivo (desiste depois de várias tentativas)
     while (retries > 0) {
@@ -80,10 +84,26 @@ static int usb_read_serial() {
             continue;
         }
 
+        usb_in_buffer[actual_size] = '\0';
+
         //caso tenha recebido a mensagem 'RES_LDR X' via serial acesse o buffer 'usb_in_buffer' e retorne apenas o valor da resposta X
         //retorne o valor de X em inteiro
-        return 0;
+         if (strncmp(usb_in_buffer, prefix, prefix_len) == 0) {
+
+            if (kstrtol(usb_in_buffer + prefix_len, 10, &ldr_value) == 0) {
+                // A conversão funcionou.
+                printk(KERN_INFO "SmartLamp: Mensagem recebida: '%s', Valor LDR extraído: %ld\n", usb_in_buffer, ldr_value);
+                return (int)ldr_value; // Retorna o valor como um inteiro
+            } else {
+                // A conversão falhou
+                printk(KERN_WARNING "SmartLamp: Mensagem com prefixo correto, mas valor LDR inválido: '%s'\n", usb_in_buffer);
+            }
+        }
+
+        // Se a mensagem não era a esperada, apenas ignora e tenta ler a próxima.
+        retries--;
     }
 
+    printk(KERN_ERR "SmartLamp: Nao foi possivel ler um valor LDR valido apos 10 tentativas.\n");
     return -1; 
 }
