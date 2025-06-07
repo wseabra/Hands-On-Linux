@@ -1,4 +1,4 @@
-obj-m += probe.o
+obj-m += serial.o
 PWD := $(CURDIR)
 KDIR := /lib/modules/$(shell uname -r)/build
 

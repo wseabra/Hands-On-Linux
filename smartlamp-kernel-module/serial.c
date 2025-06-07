@@ -78,19 +78,42 @@ static int usb_read_serial() {
         // Lê os dados da porta serial e armazena em usb_in_buffer
             // usb_in_buffer - contem a resposta em string do dispositivo
             // actual_size - contem o tamanho da resposta em bytes
-        ret = usb_bulk_msg(smartlamp_device, usb_rcvbulkpipe(smartlamp_device, usb_in), usb_in_buffer, min(usb_max_size, MAX_RECV_LINE), &actual_size, 1000);
+        char buffer[64];
+        bool endloop = false;
+        int bufferIdx = 0;
+        while (!endloop)
+        {
+            ret = usb_bulk_msg(smartlamp_device, usb_rcvbulkpipe(smartlamp_device, usb_in), usb_in_buffer, min(usb_max_size, MAX_RECV_LINE), &actual_size, 5000);
+            if (ret) {
+                endloop = true;
+                bufferIdx = 0;
+                continue;
+            }
+            if (usb_in_buffer[0] != '\n')  {
+                buffer[bufferIdx] = usb_in_buffer[0];
+                bufferIdx++;
+                continue;
+            } else if (usb_in_buffer[0] == '\n') {
+                buffer[bufferIdx] = '\0';
+                endloop = true;
+                continue;
+            }
+            bufferIdx = 0;
+        }
+        
         if (ret) {
-            printk(KERN_ERR "SmartLamp: Erro ao ler dados da USB (tentativa %d). Codigo: %d\n", ret, retries--);
+            printk(KERN_ERR "SmartLamp: Erro ao ler dados da USB (tentativa %d). Codigo: %d\n", retries--, ret);
             continue;
         }
+        printk("LDR value %s\n", buffer);
 
-        usb_in_buffer[actual_size] = '\0';
+        //usb_in_buffer[actual_size] = '\0';
 
         //caso tenha recebido a mensagem 'RES_LDR X' via serial acesse o buffer 'usb_in_buffer' e retorne apenas o valor da resposta X
         //retorne o valor de X em inteiro
-         if (strncmp(usb_in_buffer, prefix, prefix_len) == 0) {
+         if (strncmp(buffer, prefix, prefix_len) == 0) {
 
-            if (kstrtol(usb_in_buffer + prefix_len, 10, &ldr_value) == 0) {
+            if (kstrtol(buffer + prefix_len, 10, &ldr_value) == 0) {
                 // A conversão funcionou.
                 printk(KERN_INFO "SmartLamp: Mensagem recebida: '%s', Valor LDR extraído: %ld\n", usb_in_buffer, ldr_value);
                 return (int)ldr_value; // Retorna o valor como um inteiro
