@@ -93,7 +93,7 @@ static int usb_read_serial() {
                 buffer[bufferIdx] = usb_in_buffer[0];
                 bufferIdx++;
                 continue;
-            } else if (usb_in_buffer[0] == '\n') {
+            } else {
                 buffer[bufferIdx] = '\0';
                 endloop = true;
                 continue;
