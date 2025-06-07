@@ -28,12 +28,13 @@ void setup() {
 void loop() {
     //Obtenha os comandos enviados pela serial 
     //e processe-os com a função processCommand
-    if (Serial.available() > 0) {
+    processCommand(GET_LDR);
+    /*if (Serial.available() > 0) {
         String command = Serial.readString();
         command.trim();
         processCommand(command);
-    }
-    delay(100);
+    }*/
+    delay(1000);
 }
 
 
