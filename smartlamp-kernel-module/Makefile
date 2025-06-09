@@ -1,4 +1,4 @@
-obj-m += serial.o
+obj-m += sysfs.o
 PWD := $(CURDIR)
 KDIR := /lib/modules/$(shell uname -r)/build
 

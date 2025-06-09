@@ -1,7 +1,7 @@
+
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/slab.h>
-#include <string.h>
 
 MODULE_AUTHOR("DevTITANS <devtitans@icomp.ufam.edu.br>");
 MODULE_DESCRIPTION("Driver de acesso ao SmartLamp (ESP32 com Chip Serial CP2102");
@@ -16,8 +16,8 @@ static uint usb_in, usb_out;                       // Endereços das portas de e
 static char *usb_in_buffer, *usb_out_buffer;       // Buffers de entrada e saída da USB
 static int usb_max_size;                           // Tamanho máximo de uma mensagem USB
 
-#define VENDOR_ID   SUBSTITUA_PELO_VENDORID /* Encontre o VendorID  do smartlamp */
-#define PRODUCT_ID  SUBSTITUA_PELO_PRODUCTID /* Encontre o ProductID do smartlamp */
+#define VENDOR_ID  0x10c4  /* Encontre o VendorID  do smartlamp */
+#define PRODUCT_ID  0xea60  /* Encontre o ProductID do smartlamp */
 static const struct usb_device_id id_table[] = { { USB_DEVICE(VENDOR_ID, PRODUCT_ID) }, {} };
 
 static int  usb_probe(struct usb_interface *ifce, const struct usb_device_id *id); // Executado quando o dispositivo é conectado na USB
@@ -87,36 +87,66 @@ static void usb_disconnect(struct usb_interface *interface) {
 static int usb_read_serial() {
     int ret, actual_size;
     int retries = 10;                       // Tenta algumas vezes receber uma resposta da USB. Depois desiste.
-    int num;
+    long ldr_value; 
+
+    const char *prefix = "RES GET_LDR ";
+    const size_t prefix_len = strlen(prefix);
 
     // Espera pela resposta correta do dispositivo (desiste depois de várias tentativas)
     while (retries > 0) {
         // Lê os dados da porta serial e armazena em usb_in_buffer
             // usb_in_buffer - contem a resposta em string do dispositivo
             // actual_size - contem o tamanho da resposta em bytes
-        ret = usb_bulk_msg(smartlamp_device, usb_rcvbulkpipe(smartlamp_device, usb_in), usb_in_buffer, min(usb_max_size, MAX_RECV_LINE), &actual_size, 1000);
+        char buffer[64];
+        bool endloop = false;
+        int bufferIdx = 0;
+        while (!endloop)
+        {
+            ret = usb_bulk_msg(smartlamp_device, usb_rcvbulkpipe(smartlamp_device, usb_in), usb_in_buffer, min(usb_max_size, MAX_RECV_LINE), &actual_size, 5000);
+            if (ret) {
+                endloop = true;
+                bufferIdx = 0;
+                continue;
+            }
+            if (usb_in_buffer[0] != '\n')  {
+                buffer[bufferIdx] = usb_in_buffer[0];
+                bufferIdx++;
+                continue;
+            } else {
+                buffer[bufferIdx] = '\0';
+                endloop = true;
+                continue;
+            }
+            bufferIdx = 0;
+        }
+        
         if (ret) {
-            printk(KERN_ERR "SmartLamp: Erro ao ler dados da USB (tentativa %d). Codigo: %d\n", ret, retries--);
+            printk(KERN_ERR "SmartLamp: Erro ao ler dados da USB (tentativa %d). Codigo: %d\n", retries--, ret);
             continue;
         }
+        printk("LDR value %s\n", buffer);
+
+        //usb_in_buffer[actual_size] = '\0';
 
         //caso tenha recebido a mensagem 'RES_LDR X' via serial acesse o buffer 'usb_in_buffer' e retorne apenas o valor da resposta X
         //retorne o valor de X em inteiro
+         if (strncmp(buffer, prefix, prefix_len) == 0) {
 
-        usb_in_buffer[actual_size] = '\0';
-
-        //printk(KERN_INFO "%s/n", usb_in_buffer);
-
-        if(strncmp(usb_in_buffer, "RES_LDR", 7) == 0){
-            
-            sscanf(str + 7, "%d", &num);
-
-            return num;
+            if (kstrtol(buffer + prefix_len, 10, &ldr_value) == 0) {
+                // A conversão funcionou.
+                printk(KERN_INFO "SmartLamp: Mensagem recebida: '%s', Valor LDR extraído: %ld\n", usb_in_buffer, ldr_value);
+                return (int)ldr_value; // Retorna o valor como um inteiro
+            } else {
+                // A conversão falhou
+                printk(KERN_WARNING "SmartLamp: Mensagem com prefixo correto, mas valor LDR inválido: '%s'\n", usb_in_buffer);
+            }
         }
-        
+
+        // Se a mensagem não era a esperada, apenas ignora e tenta ler a próxima.
         retries--;
     }
 
+    printk(KERN_ERR "SmartLamp: Nao foi possivel ler um valor LDR valido apos 10 tentativas.\n");
     return -1; 
 }
 
