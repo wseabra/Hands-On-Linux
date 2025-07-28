@@ -1,3 +1,15 @@
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
+
+
+#define DHTPIN 14 
+#define DHTTYPE    DHT11     // DHT 11
+float temp = 0;
+float hum = 0;
+DHT_Unified dht(DHTPIN, DHTTYPE);
+
+
 // Defina os pinos de LED e LDR
 // Defina uma variável com valor máximo do LDR (4000)
 // Defina uma variável para guardar o valor atual do LED (10)
@@ -82,4 +94,29 @@ int ldrGetValue() {
     if (ldrVal > 100)
         ldrVal = 100;
     return (int)ldrVal;
+}
+
+void readDht11() {
+  sensors_event_t event;
+  dht.temperature().getEvent(&event);
+  if (isnan(event.temperature)) {
+    Serial.println(F("Error reading temperature!"));
+  }
+  else {
+    Serial.print(F("Temperature: "));
+    Serial.print(event.temperature);
+    Serial.println(F("°C"));
+  }
+  temp = event.temperature;
+  // Get humidity event and print its value.
+  dht.humidity().getEvent(&event);
+  if (isnan(event.relative_humidity)) {
+    Serial.println(F("Error reading humidity!"));
+  }
+  else {
+    Serial.print(F("Humidity: "));
+    Serial.print(event.relative_humidity);
+    Serial.println(F("%"));
+  }
+  hum = event.relative_humidity;
 }
