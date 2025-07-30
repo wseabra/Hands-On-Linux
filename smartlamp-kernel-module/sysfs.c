@@ -32,7 +32,9 @@ static ssize_t attr_store(struct kobject *sys_obj, struct kobj_attribute *attr, 
 // Variáveis para criar os arquivos no /sys/kernel/smartlamp/{led, ldr}
 static struct kobj_attribute  led_attribute = __ATTR(led, S_IRUGO | S_IWUSR, attr_show, attr_store);
 static struct kobj_attribute  ldr_attribute = __ATTR(ldr, S_IRUGO | S_IWUSR, attr_show, attr_store);
-static struct attribute      *attrs[]       = { &led_attribute.attr, &ldr_attribute.attr, NULL };
+static struct kobj_attribute  dht_attribute = __ATTR(dht, S_IRUGO | S_IWUSR, attr_show, attr_store);
+
+static struct attribute      *attrs[]       = { &led_attribute.attr, &ldr_attribute.attr, &dht_attribute, NULL };
 static struct attribute_group attr_group    = { .attrs = attrs };
 static struct kobject        *sys_obj;                                             // Executado para ler a saida da porta serial
 
@@ -208,7 +210,7 @@ static ssize_t attr_store(struct kobject *sys_obj, struct kobj_attribute *attr, 
         // Monta comando SET_LED
         char cmd[32];
         int actual_size, send_ret;
-        snprintf(cmd, sizeof(cmd), "SET_LED %ld\n", value);
+        snprintf(cmd, sizeof(cmd), "SET_LED %ld", value);
         send_ret = usb_bulk_msg(smartlamp_device, usb_sndbulkpipe(smartlamp_device, usb_out), cmd, strlen(cmd), &actual_size, 5000);
         if (send_ret) {
             printk(KERN_ALERT "SmartLamp: erro ao enviar comando SET_LED. Codigo: %d\n", send_ret);
