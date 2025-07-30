@@ -114,12 +114,22 @@ Depois que o driver e o firmware estiverem configurados, você poderá interagir
 
 - **Escrever para o Dispositivo:**
     ```sh
-    echo "GET_LED" > /sys/kernel/smartlamp/led
+    echo "GET_LED" > /sys/kernel/smartlamp/led //BUSCA O ESTADO DO LED
+    echo "GET_LDR" > /sys/kernel/smartlamp/led //BUSCA O VALOR DE RESISTENCIA 
+    echo "GET_TEMP" > /sys/kernel/smartlamp/led //BUSCA A TEMPERATRA DO DHT
+    echo "GET_HUM" > /sys/kernel/smartlamp/led //BUSCA A HUMIDATE DO DHT
+
+    echo "SET_LED" > /sys/kernel/smartlamp/led //SETA O ESTADO DO LED
     ```
 
 - **Ler do Dispositivo:**
     ```sh
     cat /sys/kernel/smartlamp/led
+    ```
+
+- **Alterar a itensidade do led:**
+    ```sh
+    echo "<valor de 0-100>" | sudo tee -a /sys/kernel/smartlamp/led    
     ```
 
 - **Verificar Mensagens do Driver:**
@@ -131,7 +141,7 @@ Depois que o driver e o firmware estiverem configurados, você poderá interagir
     ```sh
     sudo rmmod smartlamp
     ```
-    
+
 ## Contato
 
 Para perguntas, sugestões ou feedback, entre em contato com o mantenedor do projeto em [maintainer@example.com](mailto:maintainer@example.com).
