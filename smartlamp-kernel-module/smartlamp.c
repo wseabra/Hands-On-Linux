@@ -94,10 +94,10 @@ static int usb_send_cmd(char *cmd, int param) {
     printk(KERN_INFO "SmartLamp: Enviando comando: %s\n", cmd);
 
     // preencha o buffer                     // Caso contrário, é só o comando mesmo
-
+    strcpy(usb_out_buffer, cmd);
     // Envia o comando (usb_out_buffer) para a USB
     // Procure a documentação da função usb_bulk_msg para entender os parâmetros
-    ret = usb_bulk_msg(smartlamp_device, usb_sndbulkpipe(smartlamp_device, usb_out), cmd, strlen(cmd), &actual_size, 1000);
+    ret = usb_bulk_msg(smartlamp_device, usb_sndbulkpipe(smartlamp_device, usb_out), usb_out_buffer, strlen(usb_out_buffer), &actual_size, 1000);
     if (ret) {
         printk(KERN_ERR "SmartLamp: Erro de codigo %d ao enviar comando!\n", ret);
         return -1;
@@ -217,10 +217,10 @@ static ssize_t attr_store(struct kobject *sys_obj, struct kobj_attribute *attr, 
     // utilize a função usb_send_cmd para enviar o comando SET_LED X
     char cmd[12] = "SET_LED ";
     char number[4] = "";
-    sprintf(number,"%d",value);
+    sprintf(number,"%ld",value);
     strcat(cmd,number);
-    char test[] = "SET_LED 100";
-    ret = usb_send_cmd(test,3);
+    //char test[] = "SET_LED 100";
+    ret = usb_send_cmd(cmd,3);
 
     if (ret < 0) {
         printk(KERN_ALERT "SmartLamp: erro ao setar o valor do %s.\n", attr_name);
