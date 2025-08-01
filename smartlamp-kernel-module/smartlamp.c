@@ -1,6 +1,8 @@
+#include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/slab.h>
+#include <linux/leds.h>
 
 MODULE_AUTHOR("DevTITANS <devtitans@icomp.ufam.edu.br>");
 MODULE_DESCRIPTION("Driver de acesso ao SmartLamp (ESP32 com Chip Serial CP2102");
@@ -23,6 +25,7 @@ static const struct usb_device_id id_table[] = { { USB_DEVICE(VENDOR_ID, PRODUCT
 static int  usb_probe(struct usb_interface *ifce, const struct usb_device_id *id); // Executado quando o dispositivo é conectado na USB
 static void usb_disconnect(struct usb_interface *ifce);                           // Executado quando o dispositivo USB é desconectado da USB
 static int  usb_read_serial(int);
+static int usb_send_cmd(char *cmd, int param); // Declaração antecipada
 
 // Executado quando o arquivo /sys/kernel/smartlamp/{led, ldr} é lido (e.g., cat /sys/kernel/smartlamp/led)
 static ssize_t attr_show(struct kobject *sys_obj, struct kobj_attribute *attr, char *buff);
@@ -52,6 +55,35 @@ static struct usb_driver smartlamp_driver = {
 module_usb_driver(smartlamp_driver);
 
 // Executado quando o dispositivo é conectado na USB
+static struct led_classdev *led_cdev; // Ponteiro global para liberar na desconexão
+
+static int led_brightness = -1;
+static DEFINE_MUTEX(led_mutex);
+
+// Função chamada ao escrever em /sys/class/leds/smartlamp_led/brightness
+void led_set_brightness(struct led_classdev *led_cdev, unsigned int brightness) {
+    int value = (int)brightness;
+    mutex_lock(&led_mutex);
+    led_brightness = value;
+    // Envia comando para o dispositivo via USB
+    char cmd[19];
+    snprintf(cmd, sizeof(cmd), "SET_LED %d", value);
+    usb_send_cmd(cmd, 2);
+    mutex_unlock(&led_mutex);
+    printk(KERN_INFO "SmartLamp: LED set brightness %d\n", value);
+}
+
+// Função chamada ao ler /sys/class/leds/smartlamp_led/brightness
+static enum led_brightness led_get_brightness(struct led_classdev *led_cdev) {
+    int value;
+    mutex_lock(&led_mutex);
+    value = usb_send_cmd("GET_LED", 1);
+    led_brightness = value;
+    mutex_unlock(&led_mutex);
+    printk(KERN_INFO "SmartLamp: LED get brightness %d\n", value);
+    return (enum led_brightness)value;
+}
+
 static int usb_probe(struct usb_interface *interface, const struct usb_device_id *id) {
     struct usb_endpoint_descriptor *usb_endpoint_in, *usb_endpoint_out;
 
@@ -71,8 +103,25 @@ static int usb_probe(struct usb_interface *interface, const struct usb_device_id
     usb_out_buffer = kmalloc(usb_max_size, GFP_KERNEL);
 
     //LDR_value = usb_read_serial(1);
-
     //printk("LDR Value: %d\n", LDR_value);
+
+    // add led to /sys/class/leds/smartlamp_led
+    led_cdev = devm_kzalloc(&interface->dev, sizeof(*led_cdev), GFP_KERNEL);
+    if (!led_cdev) {
+        printk(KERN_ERR "SmartLamp: Falha ao alocar memória para led_classdev\n");
+        return -ENOMEM;
+    }
+
+    led_cdev->name = "smartlamp_led";
+    led_cdev->brightness_set = led_set_brightness;
+    led_cdev->brightness_get = led_get_brightness;
+
+    // Registra o LED
+    if (led_classdev_register(&interface->dev, led_cdev)) {
+        printk(KERN_ERR "SmartLamp: Falha ao registrar led_classdev\n");
+        return -EINVAL;
+    }
+    printk(KERN_INFO "SmartLamp: Dispositivo conectado com sucesso.\n");
 
     return 0;
 }
@@ -81,6 +130,11 @@ static int usb_probe(struct usb_interface *interface, const struct usb_device_id
 static void usb_disconnect(struct usb_interface *interface) {
     printk(KERN_INFO "SmartLamp: Dispositivo desconectado.\n");
     if (sys_obj) kobject_put(sys_obj);      // Remove os arquivos em /sys/kernel/smartlamp
+    if (led_cdev) {
+        led_classdev_unregister(led_cdev);  // Remove o LED de /sys/class/leds
+        // devm_kfree não é necessário, pois devm_kzalloc será limpo automaticamente
+        led_cdev = NULL;
+    }
     kfree(usb_in_buffer);                   // Desaloca buffers
     kfree(usb_out_buffer);
 }
